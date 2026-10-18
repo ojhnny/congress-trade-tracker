@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Overlap Trade Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Congressional stock trades matched to the committees that oversee each industry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Apply a saved theme before the page paints, so there's no flash.
+  try { var t = localStorage.getItem("overlap-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+</script>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="#overview" aria-label="Overlap home">
+      <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true">
+        <rect x="2" y="2" width="16" height="16" class="bm-a"/>
+        <rect x="10" y="10" width="16" height="16" class="bm-b"/>
+        <rect x="10" y="10" width="8" height="8" class="bm-c"/>
+      </svg>
+      <span class="brand-name">Overlap</span>
+      <span class="brand-tag">Congressional trades vs. committee oversight</span>
+    </a>
+    <button type="button" class="theme-btn" id="theme-btn" aria-label="Color theme">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z"/></svg>
+      <span id="theme-label">Auto</span>
+    </button>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview" data-view="overview">Overview</a>
+      <a href="#trades" data-view="trades">Trades</a>
+      <a href="#members" data-view="members">Members</a>
+      <a href="#filings" data-view="filings">Late filings</a>
+      <a href="#michigan" data-view="michigan">Michigan</a>
+      <a href="#method" data-view="method">Method</a>
+    </nav>
+  </div>
+</header>
+
+<div class="sample-band" id="sample-band" hidden>
+  <div class="wrap">
+    <span class="sample-pill">Sample data</span>
+    <span>Members shown are fictional and the numbers are generated. Parsed House and Senate filings replace them once the pipeline runs.</span>
+  </div>
+</div>
+
+<div class="filterbar">
+  <div class="wrap filterbar-inner">
+    <div class="seg" role="group" aria-label="Trade year" id="f-year"></div>
+    <div class="seg" role="group" aria-label="Chamber" id="f-chamber"></div>
+    <div class="seg" role="group" aria-label="Party" id="f-party"></div>
+    <span class="asof" id="asof"></span>
+  </div>
+</div>
+
+<main class="wrap" id="main">
+  <p class="loading" id="loading">Loading disclosures…</p>
+
+  <!-- OVERVIEW -->
+  <section class="view" id="view-overview" hidden>
+    <div class="lede">
+      <div class="lede-text">
+        <p class="eyebrow" id="ov-eyebrow"></p>
+        <h1 class="headline" id="ov-headline"></h1>
+        <p class="lede-sub" id="ov-sub"></p>
+      </div>
+      <dl class="kpis" id="ov-kpis"></dl>
+    </div>
+
+    <div class="grid-2">
+      <article class="panel">
+        <header class="panel-head">
+          <h2>Overlap by committee</h2>
+          <p>Share of each committee's members' trades that fell in industries the committee oversees, against the share you'd expect from Congress's overall trading mix.</p>
+        </header>
+        <div class="legend" aria-hidden="true">
+          <span><i class="lg-dot lg-obs"></i>Observed</span>
+          <span><i class="lg-dot lg-exp"></i>Expected</span>
+        </div>
+        <div class="chart" id="ch-committee"></div>
+      </article>
+      <article class="panel">
+        <header class="panel-head">
+          <h2>Trades by month</h2>
+          <p>Count of disclosed transactions by the month they were made.</p>
+        </header>
+        <div class="legend" aria-hidden="true">
+          <span><i class="lg-sq lg-buy"></i>Purchases</span>
+          <span><i class="lg-sq lg-sell"></i>Sales</span>
+        </div>
+        <div class="chart" id="ch-monthly"></div>
+      </article>
+    </div>
+
+    <article class="panel">
+      <header class="panel-head panel-head-row">
+        <div>
+          <h2>Latest disclosures</h2>
+          <p>Most recently filed transactions.</p>
+        </div>
+        <a class="textlink" href="#trades">All trades →</a>
+      </header>
+      <div class="table-scroll"><table class="tbl" id="ov-latest"></table></div>
+    </article>
+  </section>
+
+  <!-- TRADES -->
+  <section class="view" id="view-trades" hidden>
+    <div class="view-head">
+      <h1 class="view-title">Trades</h1>
+      <p class="view-sub" id="tr-count"></p>
+    </div>
+    <div class="controls">
+      <label class="field field-grow">
+        <span class="field-label">Search</span>
+        <input type="search" id="tr-q" placeholder="Member, ticker or company" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="field-label">Type</span>
+        <select id="tr-type">
+          <option value="">All types</option>
+          <option value="buy">Purchase</option>
+          <option value="sell">Sale</option>
+          <option value="exchange">Exchange</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Industry</span>
+        <select id="tr-sector"><option value="">All industries</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="tr-overlap"> Overlap only</label>
+      <label class="check"><input type="checkbox" id="tr-late"> Filed late only</label>
+    </div>
+    <div class="table-scroll"><table class="tbl" id="tr-table"></table></div>
+    <div class="more"><button type="button" class="btn" id="tr-more">Show 50 more</button></div>
+  </section>
+
+  <!-- MEMBERS -->
+  <section class="view" id="view-members" hidden>
+    <div class="view-head">
+      <h1 class="view-title">Members</h1>
+      <p class="view-sub">Everyone with at least one disclosed trade in the selected period. Select a row for the member's full profile.</p>
+    </div>
+    <div class="table-scroll"><table class="tbl tbl-click" id="mb-table"></table></div>
+  </section>
+
+  <!-- LATE FILINGS -->
+  <section class="view" id="view-filings" hidden>
+    <div class="lede lede-single">
+      <div class="lede-text">
+        <p class="eyebrow">STOCK Act filing audit</p>
+        <h1 class="headline" id="lf-headline"></h1>
+        <p class="lede-sub">Members must disclose a trade within 45 days of making it, or within 30 days of learning about it if a spouse or adviser made it. Filings more than 30 days past the deadline carry a $200 late fee.</p>
+      </div>
+    </div>
+    <div class="grid-2 grid-wide-left">
+      <article class="panel">
+        <header class="panel-head">
+          <h2>Days from trade to disclosure</h2>
+          <p>Each bar counts trades in a five-day window. The last bar collects everything filed after 180 days.</p>
+        </header>
+        <div class="chart" id="ch-lag"></div>
+      </article>
+      <article class="panel">
+        <header class="panel-head">
+          <h2>Most late filings</h2>
+          <p>Members ranked by number of trades disclosed after the deadline.</p>
+        </header>
+        <ol class="rank" id="lf-rank"></ol>
+      </article>
+    </div>
+  </section>
+
+  <!-- MICHIGAN -->
+  <section class="view" id="view-michigan" hidden>
+    <div class="lede">
+      <div class="lede-text">
+        <p class="eyebrow">State focus</p>
+        <h1 class="headline">Michigan's delegation</h1>
+        <p class="lede-sub" id="mi-sub"></p>
+      </div>
+      <dl class="kpis kpis-compare" id="mi-kpis"></dl>
+    </div>
+    <div class="mi-grid" id="mi-grid"></div>
+    <article class="panel">
+      <header class="panel-head"><h2>Michigan trades</h2><p>Every disclosed transaction by the delegation in the selected period.</p></header>
+      <div class="table-scroll"><table class="tbl" id="mi-table"></table></div>
+      <div class="more"><button type="button" class="btn" id="mi-more">Show 50 more</button></div>
+    </article>
+  </section>
+
+  <!-- METHOD -->
+  <section class="view view-prose" id="view-method" hidden>
+    <div class="view-head">
+      <h1 class="view-title">How this works</h1>
+      <p class="view-sub">Every number on this site comes from public disclosures. Read the findings as patterns. A trade in an industry a member oversees is not evidence that the member misused information.</p>
+    </div>
+
+    <div class="method-grid">
+      <div class="prose">
+        <h2>Sources</h2>
+        <ul class="sources">
+          <li><a href="https://disclosures-clerk.house.gov/FinancialDisclosure" target="_blank" rel="noopener">House Clerk financial disclosures</a><span>Periodic transaction reports, some filed as scanned PDFs</span></li>
+          <li><a href="https://efdsearch.senate.gov/" target="_blank" rel="noopener">Senate electronic financial disclosures</a><span>Periodic transaction reports</span></li>
+          <li><a href="https://github.com/unitedstates/congress-legislators" target="_blank" rel="noopener">congress-legislators</a><span>Members and committee assignments, with dates</span></li>
+          <li><a href="https://www.sec.gov/search-filings/edgar-search-tools" target="_blank" rel="noopener">SEC EDGAR</a><span>Tickers, company names and SIC industry codes</span></li>
+          <li><span class="src-name">Daily prices</span><span>Closing prices for each stock and for SPY, the benchmark</span></li>
+        </ul>
+
+        <h2>Amounts are ranges</h2>
+        <p>Members report each trade as one of ten value bands, not an exact amount. The site keeps the band and draws it as a ten-step scale, so you always see what was actually disclosed.</p>
+        <div class="band-legend" id="band-legend"></div>
+        <p>Totals are shown as the sum of every band's floor to the sum of every band's ceiling. A midpoint is used only to sort members, never as a reported figure.</p>
+
+        <h2>What counts as overlap</h2>
+        <p>Each stock is assigned an industry from its SEC SIC code. A hand-built table maps each industry to the House and Senate committees with jurisdiction over it. A trade is an overlap when the member sat on one of those committees on the trade date.</p>
+        <p>The expected rate answers the question "how often would this happen by chance?". For every trade, it takes the share of all congressional trading that falls in the member's overseen industries, then averages across trades.</p>
+
+        <h2>Returns</h2>
+        <p>Returns are measured from the trade date close to 30 and 90 days later, minus SPY over the same window. Sales are measured the same way, so a positive number after a sale means the stock kept rising.</p>
+      </div>
+
+      <aside class="panel health">
+        <header class="panel-head"><h2>Pipeline health</h2><p>From the latest run.</p></header>
+        <dl class="health-list" id="health"></dl>
+        <p class="health-note">Scanned filings are routed to manual review before their trades are counted. Amended reports replace the original filing instead of adding duplicate rows.</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>Overlap is a student data engineering project. Data: House Clerk, Senate eFD, congress-legislators, SEC EDGAR.</span>
+    <span id="foot-asof"></span>
+  </div>
+</footer>
+
+<!-- Member profile -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-modal="true" role="dialog" aria-labelledby="dr-name">
+  <button type="button" class="drawer-close" id="drawer-close" aria-label="Close profile">×</button>
+  <div id="drawer-body"></div>
+</aside>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
