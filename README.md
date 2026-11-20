@@ -57,9 +57,10 @@ in the [design report](docs/design-report.md) ([PDF](docs/design-report.pdf)).
 | Project skeleton, config and tests | ✅ Done |
 | Local Airflow 3 in Docker, with dbt installed | ✅ Done and verified (smoke-test DAG passes) |
 | Public dashboard (static site) | ✅ Done, running on **sample data** |
-| Extraction: House and Senate disclosures to Google Cloud Storage | 🔜 Next |
-| PDF parsing, reference data, prices | Planned |
-| BigQuery load, dbt models and tests | Planned |
+| Extraction: House and Senate disclosures to a landing zone (local disk or GCS) | 🚧 Code written and unit-tested in [PR #1](https://github.com/ojhnny/congress-trade-tracker/pull/1); full live run pending |
+| PDF parsing, reference data, prices | 🚧 Code written and unit-tested in [PR #1](https://github.com/ojhnny/congress-trade-tracker/pull/1) |
+| Raw load (local DuckDB or BigQuery) | 🚧 Code written in [PR #1](https://github.com/ojhnny/congress-trade-tracker/pull/1); BigQuery path untested |
+| dbt models and tests | 🔜 Next |
 | Export to the dashboard, CI/CD with GitHub Actions | Planned |
 | Power BI report | Planned |
 
@@ -241,13 +242,13 @@ service account key goes in `credentials/`, which is gitignored.
 
 - [x] Skeleton, config, local Airflow with dbt
 - [x] Public dashboard on sample data
-- [ ] House disclosures: yearly index and raw files to GCS
-- [ ] Parse House periodic transaction reports (text and scanned PDFs)
-- [ ] Senate eFD: search, download and parse
-- [ ] Reference data: members, committees, SEC tickers and SIC codes
+- [ ] House disclosures: yearly index and raw files to the landing zone *(in progress, PR #1)*
+- [ ] Parse House periodic transaction reports (text PDFs parsed; scanned PDFs flagged) *(in progress, PR #1)*
+- [ ] Senate eFD: search, download and parse *(in progress, PR #1)*
+- [ ] Reference data: members, quarterly committee-membership history, SEC tickers and SIC codes *(in progress, PR #1)*
 - [ ] Industry-to-committee mapping table
-- [ ] Daily prices and SPY benchmark
-- [ ] Load to BigQuery `raw`
+- [ ] Daily prices and SPY benchmark *(in progress, PR #1)*
+- [ ] Load to `raw` (local DuckDB or BigQuery) *(in progress, PR #1)*
 - [ ] dbt staging models and tests
 - [ ] dbt marts and committee-membership snapshots
 - [ ] Analysis models: overlap, late filings, returns, Michigan
